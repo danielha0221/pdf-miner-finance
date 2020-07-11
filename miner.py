@@ -19,7 +19,7 @@ class ExtractText():
     def __init__(self):
         self.finance_words = list()
         self.finance_words_count = dict()
-        self.report_pdf_dir = '/Users/daniel/Desktop/git/pdfminer/report/'
+        self.report_pdf_dir = '/Users/eunbyul/Desktop/git/pdf-miner-finance/report/'
         self.report_pdf_list  = [f for f in listdir(self.report_pdf_dir) if isfile(join(self.report_pdf_dir, f))]
 
     def convert_pdf_to_txt(self, pdf_file):
