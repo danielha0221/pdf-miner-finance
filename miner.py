@@ -15,17 +15,18 @@ from pdfminer.pdfdevice import PDFDevice, TagExtractor
 
 from os import listdir
 from os.path import isfile, join
+import time 
 
 class ExtractText():
 
     def __init__(self):
+        pass
         self.finance_words = list()
         self.finance_words_count = dict()
         self.report_pdf_dir = '/Users/eunbyul/Desktop/git/pdf-miner-finance/report/'
         self.report_pdf_list  = [f for f in listdir(self.report_pdf_dir) if isfile(join(self.report_pdf_dir, f))]
         self.file_nm = ''
-
-        print(self.report_pdf_list)
+        # print(self.report_pdf_list)
 
     def convert_pdf_to_txt(self, pdf_file):
         """PDF파일을 텍스트로 변환해주는 함수
@@ -41,6 +42,7 @@ class ExtractText():
         output_string = StringIO()
         self.file_nm = pdf_file.split(".")[0]
         file_ex = pdf_file.split(".")[1]
+        
 
         pdf_path = self.report_pdf_dir + pdf_file
         out_path = self.report_pdf_dir + 'out/' + self.file_nm + '.txt'
@@ -66,7 +68,7 @@ class ExtractText():
         
         with open(out_path, 'w') as out_file:
 
-            out_file.write(self.file_nm + '\n')
+            # out_file.write(self.file_nm + '\n')
             out_file.write(report_text)
 
         return report_text
@@ -117,8 +119,9 @@ class ExtractText():
             [dict]: 문단 텍스트
         """
         text = ''
-        page_text = page_text[58:]
+        # page_text = page_text[58:-58]            
         paragraph_list = page_text.split('--------------------------------------------------------\n--------------------------------------------------------\n')
+        
         # print(paragraph_list)
     
         # 리스트 인덱스 하나씩 다. 갯수세기
@@ -126,7 +129,11 @@ class ExtractText():
         for paragraph in paragraph_list:
             if '다.' in paragraph:
                 text += paragraph + ' \n'
+            if "--------------------------------------------------------\n" in text:
+                text = text.replace("--------------------------------------------------------\n", '')
+
         print(text)
+        
             
         return text
 
@@ -135,7 +142,7 @@ class ExtractText():
     def save_to_txt(self, txt):
         out_path = self.report_pdf_dir + 'out/' + self.file_nm + '.txt'
         with open(out_path, 'w') as out_file:
-            out_file.write(self.file_nm + '\n')
+            # out_file.write(self.file_nm + '\n')
             out_file.write(txt)
 
         
@@ -143,10 +150,22 @@ class ExtractText():
     def main(self):
         # 이게 먼저 #input pdf output text
         for pdf_file in self.report_pdf_list:
+            start1 = time.time()
             report_text = self.convert_pdf_to_txt(pdf_file)
+            end1 = time.time()
+            start2 = time.time()
             page_text = self.page_text_finder(report_text)
+            end2 = time.time()
+            start3 = time.time()
             txt = self.extract_paragraph(page_text)
+            end3 = time.time()
+            start4 = time.time()
             self.save_to_txt(txt)
+            end4 = time.time()
+        print("report_text_time", end1 - start1) 
+        print("page_text", end2 - start2)  
+        print("txt_time", end3 - start3) 
+        print("save_time", end4 - start4)
             # self.save_to_csv()
 
 
