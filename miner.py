@@ -24,16 +24,19 @@ import time
 class ExtractText():
 
     def __init__(self):
-        pass
         self.finance_words = list()
         self.finance_words_count = dict()
-        self.report_pdf_dir = '/Users/daniel/Desktop/git/pdf-miner-finance/report/'
+        self.report_pdf_dir = '/Users/eunbyul/Desktop/증권회사/10_유안타증권_배은별_2/10_유안타증권_배은별_2/pdf/'
+        self.output_txt_dir = '/Users/eunbyul/Desktop/증권회사/10_유안타증권_배은별_2/10_유안타증권_배은별_2/txt/'
+
         self.report_pdf_list = [f for f in listdir(
             self.report_pdf_dir) if isfile(join(self.report_pdf_dir, f))]
         self.file_nm = ''
 
+        print(self.report_pdf_list[0])
+
         if '.DS_Store' in self.report_pdf_list:
-            self.report_pdf_list = self.report_pdf_list.remove('.DS_Store')
+            self.report_pdf_list.pop(self.report_pdf_list.index('.DS_Store'))
 
     def convert_pdf_to_txt(self, pdf_file):
         """PDF파일을 텍스트로 변환해주는 함수
@@ -50,7 +53,6 @@ class ExtractText():
         file_ex = pdf_file.split(".")[1]
 
         pdf_path = self.report_pdf_dir + pdf_file
-        out_path = self.report_pdf_dir + 'out/' + self.file_nm + '.txt'
 
         laparams = LAParams(line_overlap=.5,
                             char_margin=1.38,
@@ -65,15 +67,24 @@ class ExtractText():
         interpreter = PDFPageInterpreter(rsrcmgr, device)
 
         # Extract text
+        page_text_total = ''
+        found = False
         with open(pdf_path, 'rb') as in_file:
 
             for page_num, page in enumerate(PDFPage.get_pages(in_file, check_extractable=True)):
                 interpreter.process_page(page)
                 page_text = output_string.getvalue()
+                page_text_total += page_text
                 report_text, found = self.page_text_finder(page_text)
                 if found:
                     break
 
+            if not found:
+                print('not found')
+                report_text = page_text_total
+                print(report_text)
+                
+            
         return report_text
 
     def page_text_finder(self, report_text):
@@ -140,26 +151,29 @@ class ExtractText():
         return text
 
     def save_to_txt(self, txt):
-        out_path = self.report_pdf_dir + 'out/' + self.file_nm + '.txt'
+        output_path = self.output_txt_dir + self.file_nm + '.txt'
+        output_path = hangul.join_jamos(j2hcj(h2j(output_path)))
 
-        with open(out_path, 'w') as out_file:
+        with open(output_path, 'w') as out_file:
             out_file.write(txt)
 
     def main(self):
         # 이게 먼저 #input pdf output text
-        for pdf_file in self.report_pdf_list:
+        # print(self.report_pdf_list)
+        for i, pdf_file in enumerate(sorted(self.report_pdf_list)):
             start1 = time.time()
             report_text = self.convert_pdf_to_txt(pdf_file)
-            end1 = time.time()
-            start3 = time.time()
             txt = self.extract_paragraph(report_text)
             end3 = time.time()
             start4 = time.time()
             self.save_to_txt(txt)
             end4 = time.time()
-            print("report_text_time", end1 - start1)
-            print("txt_time", end3 - start3)
-            print("save_time", end4 - start4)
+            print(f'{i}/{len(self.report_pdf_list)}')
+            print(pdf_file)
+            # print("report_text_time", end1 - start1)
+            # print("txt_time", end3 - start3)
+            # print("save_time", end4 - start4)
+            print(f"total time : {end4 - start1}")
 
 
 if __name__ == "__main__":
