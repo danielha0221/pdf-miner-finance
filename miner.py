@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# pip install pytesseract pdf2image jamo hangul PIL pdfminer
+# pip install pytesseract pdf2image jamo hangul pdfminer.six 
+# brew install poppler tesseract tesseract-lang
 
 from io import StringIO, BytesIO
 import os
@@ -29,7 +30,7 @@ class ExtractText():
     def __init__(self):
         self.finance_words = list()
         self.finance_words_count = dict()
-        self.root_dir = '/Users/daniel/Desktop/test_2/'
+        self.root_dir = '/Users/eunbyul/Desktop/증권회사/10_유안타증권_배은별_2/10_유안타증권_배은별_2/'
         self.report_pdf_dir = self.root_dir + 'pdf/'
         self.output_txt_dir = self.root_dir + 'txt/'
         self.temp_img_dir = self.root_dir + 'tmp/'
@@ -77,7 +78,6 @@ class ExtractText():
         interpreter = PDFPageInterpreter(rsrcmgr, device)
 
         # Extract text
-        page_text_total = ''
         found = False
         with open(self.pdf_path, 'rb') as in_file:
 
@@ -172,8 +172,7 @@ class ExtractText():
 
     def create_log_txt(self):
         with open(self.log_dir + 'log.txt', 'a') as out_file:
-            out_file.write(str(time.time()) + ': ' + self.output_txt_dir +
-                           self.file_nm + '.txt \n')
+            out_file.write(self.file_nm + '.txt \n')
 
     def save_to_txt(self, txt):
         output_path = self.output_txt_dir + self.file_nm + '.txt'
