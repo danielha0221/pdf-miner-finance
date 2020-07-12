@@ -33,7 +33,7 @@ class ExtractText():
         self.root_dir = '/Users/daniel/Desktop/test_2/'
         self.report_pdf_dir = self.root_dir + 'pdf/'
         self.output_txt_dir = self.root_dir + 'txt/'
-        self.temp_img_dir = self.root_dir + 'tmp/'
+        self.after_inspec_dir = self.root_dir + 'after_inspec_txt/'
         self.log_dir = self.root_dir + 'log/'
 
         self.report_pdf_list = [f for f in listdir(
@@ -41,7 +41,7 @@ class ExtractText():
         self.file_nm = ''
         self.pdf_path = ''
 
-        for dirs in [self.output_txt_dir, self.temp_img_dir, self.log_dir]:
+        for dirs in [self.output_txt_dir, self.after_inspec_dir, self.log_dir]:
             if not os.path.exists(dirs):
                 os.makedirs(dirs)
 
@@ -82,8 +82,6 @@ class ExtractText():
         with open(self.pdf_path, 'rb') as in_file:
 
             for page_num, page in enumerate(PDFPage.get_pages(in_file, check_extractable=True)):
-                # output_string.truncate(0)
-                # output_string.seek(0)
                 interpreter.process_page(page)
                 page_text = output_string.getvalue()
                 report_text, found, company_nm, company_num = self.page_text_finder(
@@ -97,17 +95,8 @@ class ExtractText():
         return report_text, company_nm, company_num
 
     def page_text_finder(self, report_text):
-        """텍스트로 변환된 스트링을 받아서, 재무 분석 의견이 있는 페이지를 찾는 함수
-
-        Args:
-            report_text (string): [description]
-
-        Returns:
-            [list]: 재무 분석 문단이 있는 페이지
-        """
         page_text = ''
         text = ''
-        i = 0
         found = False
 
         company_name = self.file_nm.split('_')[3]
@@ -120,10 +109,6 @@ class ExtractText():
 
         if company_name in company_dict.keys():
             company_name = company_dict[company_name]
-
-        if company_name == 'SK':
-            pass
-            # print(report_text)
 
         for line in report_text.split('\n'):
             if "page_id" in line and '||Title||  ' + company_name in text and company_num in text:
@@ -139,19 +124,25 @@ class ExtractText():
         return page_text, found, company_name, company_num
 
     def extract_paragraph(self, page_text):
-
         text = ''
-        # page_text = page_text[58:-58]
-        paragraph_list = page_text.split(
-            '--------------------------------------------------------\n--------------------------------------------------------\n')
+        end = '--end----------------------------------------------------\n'
+        start = '--start--------------------------------------------------\n'
+        paragraph_list = page_text.split(end + start)
 
         # 리스트 인덱스 하나씩 다. 갯수세기
         for paragraph in paragraph_list:
-            if '다.' in paragraph or len(paragraph.split(' ')) > 20:
+            if start in paragraph:
+                for para in paragraph.split(start):
+                    if end in para:
+                        for pa in para.split(end):
+                            if '다.' in pa or len(pa.split(' ')) > 20:
+                                text += pa + ' \n'
+
+                    elif '다.' in para or len(para.split(' ')) > 20:
+                        text += para + ' \n'
+
+            elif '다.' in paragraph or len(paragraph.split(' ')) > 20:
                 text += paragraph + ' \n'
-            if "--------------------------------------------------------\n" in text:
-                text = text.replace(
-                    "--------------------------------------------------------\n", '')
 
         return text
 
@@ -174,7 +165,9 @@ class ExtractText():
     def create_log_txt(self, txt, company_nm, company_num):
         with open(self.log_dir + 'log.txt', 'a') as out_file:
             out_file.write(self.file_nm + '.txt \n')
-            out_file.write(company_nm + '   ' + company_num + '\n')
+            out_file.write(company_nm + ' ' + company_num + '\n')
+            txt = txt.split('\n')[1:-1]
+            txt = '\n'.join(txt)
             out_file.write(txt + '\n')
             out_file.write('****************************\n')
 
@@ -186,8 +179,6 @@ class ExtractText():
             out_file.write(txt)
 
     def main(self):
-        # 이게 먼저 #input pdf output text
-        # print(self.report_pdf_list)
         start0 = time.time()
         for i, pdf_file in enumerate(sorted(self.report_pdf_list)):
             start1 = time.time()
@@ -198,8 +189,6 @@ class ExtractText():
                 txt = self.extract_paragraph(report_text)
                 self.create_log_txt(report_text, company_nm, company_num)
                 self.save_to_txt(txt)
-            # else:
-                # txt = self.convert_pdf_to_img_to_txt()
 
             end4 = time.time()
 

@@ -352,14 +352,14 @@ class FinanceConverter(PDFConverter):
                     if grand_count > 0:
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
                             self.write(
-                                '--------------------------------------------------------\n')
+                                '--start--------------------------------------------------\n')
 
                         for child in item:
                             render(child)
 
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
                             self.write(
-                                '--------------------------------------------------------\n')
+                                '--end----------------------------------------------------\n')
 
                         large_char = False
 
@@ -367,14 +367,14 @@ class FinanceConverter(PDFConverter):
                     if grand_count > 0:
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
                             self.write(
-                                '--------------------------------------------------------\n')
+                                '--start--------------------------------------------------\n')
 
                         for child in item:
                             render(child)
 
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
                             self.write(
-                                '--------------------------------------------------------\n')
+                                '--end----------------------------------------------------\n')
 
                         large_char = False
 
@@ -404,6 +404,7 @@ class FinanceConverter(PDFConverter):
             elif isinstance(item, LTText):
                 if item.get_text().strip():
                     self.write_text(item.get_text())
+                    print(item.get_text())
                 elif self.need_space:
                     # 단어 띄어 쓰기
                     self.write(' ')
