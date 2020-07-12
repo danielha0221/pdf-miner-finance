@@ -26,6 +26,10 @@ class ExtractText():
         self.report_pdf_dir = '/Users/eunbyul/Desktop/git/pdf-miner-finance/report/'
         self.report_pdf_list  = [f for f in listdir(self.report_pdf_dir) if isfile(join(self.report_pdf_dir, f))]
         self.file_nm = ''
+
+        if '.DS_Store' in self.report_pdf_list:
+            # delete
+            self.report_pdf_list = self.report_pdf_list.remove('.DS_Store')
         # print(self.report_pdf_list)
 
     def convert_pdf_to_txt(self, pdf_file):
