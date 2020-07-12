@@ -7,11 +7,14 @@ from io import StringIO, BytesIO
 
 from finance_converter import FinanceConverter
 from pdfminer.pdfdocument import PDFDocument, PDFStream
+from pdfminer.converter import TextConverter
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 from pdfminer.pdfparser import PDFParser
 from pdfminer.layout import LAParams, LTTextBox, LTTextLine
 from pdfminer.pdfdevice import PDFDevice, TagExtractor
+import hangul
+from jamo import h2j, j2hcj, j2h
 
 from os import listdir
 from os.path import isfile, join
@@ -30,9 +33,7 @@ class ExtractText():
         self.file_nm = ''
 
         if '.DS_Store' in self.report_pdf_list:
-            # delete
             self.report_pdf_list = self.report_pdf_list.remove('.DS_Store')
-        # print(self.report_pdf_list)
 
     def convert_pdf_to_txt(self, pdf_file):
         """PDF파일을 텍스트로 변환해주는 함수
@@ -44,7 +45,6 @@ class ExtractText():
             [dict]: PDF에서 텍스트로 변환된 결과물
         """
 
-        report_text = dict()
         output_string = StringIO()
         self.file_nm = pdf_file.split(".")[0]
         file_ex = pdf_file.split(".")[1]
@@ -69,11 +69,10 @@ class ExtractText():
 
             for page_num, page in enumerate(PDFPage.get_pages(in_file, check_extractable=True)):
                 interpreter.process_page(page)
-                report_text = output_string.getvalue()
-
-        # with open(out_path, 'w') as out_file:
-
-        #     out_file.write(report_text)
+                page_text = output_string.getvalue()
+                report_text, found = self.page_text_finder(page_text)
+                if found:
+                    break
 
         return report_text
 
@@ -86,15 +85,18 @@ class ExtractText():
         Returns:
             [list]: 재무 분석 문단이 있는 페이지
         """
-        company_name = ''
         page_text = ''
         text = ''
         i = 0
-        # print(report_text.split('\n'))
+        found = False
+
         company_name = self.file_nm.split('_')[3]
         company_num = self.file_nm.split('_')[4][1:]
 
         company_dict = {'LG상사': 'LG 상사'}
+
+        # To resolve hangul encoding issue
+        company_name = hangul.join_jamos(j2hcj(h2j(company_name)))
 
         if company_name in company_dict.keys():
             company_name = company_dict[company_name]
@@ -102,13 +104,14 @@ class ExtractText():
         for line in report_text.split('\n'):
             if "page_id" in line and '||Title||  ' + company_name in text and company_num in text:
                 page_text = text
+                found = True
                 break
             elif "page_id" in line:
                 text = ''
             else:
                 text += line + '\n'
 
-        return page_text
+        return page_text, found
 
     def extract_paragraph(self, page_text):
         """문단과 제목의 분리
@@ -125,8 +128,6 @@ class ExtractText():
         paragraph_list = page_text.split(
             '--------------------------------------------------------\n--------------------------------------------------------\n')
 
-        # print(paragraph_list)
-
         # 리스트 인덱스 하나씩 다. 갯수세기
 
         for paragraph in paragraph_list:
@@ -135,8 +136,6 @@ class ExtractText():
             if "--------------------------------------------------------\n" in text:
                 text = text.replace(
                     "--------------------------------------------------------\n", '')
-
-        print(text)
 
         return text
 
@@ -152,20 +151,15 @@ class ExtractText():
             start1 = time.time()
             report_text = self.convert_pdf_to_txt(pdf_file)
             end1 = time.time()
-            start2 = time.time()
-            page_text = self.page_text_finder(report_text)
-            end2 = time.time()
             start3 = time.time()
-            txt = self.extract_paragraph(page_text)
+            txt = self.extract_paragraph(report_text)
             end3 = time.time()
             start4 = time.time()
             self.save_to_txt(txt)
             end4 = time.time()
             print("report_text_time", end1 - start1)
-            print("page_text", end2 - start2)
             print("txt_time", end3 - start3)
             print("save_time", end4 - start4)
-        # self.save_to_csv()
 
 
 if __name__ == "__main__":
