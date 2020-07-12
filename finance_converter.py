@@ -173,7 +173,8 @@ class FinanceConverter(PDFConverter):
         self.space_check = []
         self.need_space = False
         self.need_enter = False
-        self.large_char = 10
+        self.large_char = 32
+        self.small_char = 9
         self.test  = []
         return
     
@@ -281,10 +282,14 @@ class FinanceConverter(PDFConverter):
                     # if large_char > 1 and box_id:
                     #     self.write('==' + 'id=' + box_id + '=' * large_char * 2 + '\n')
                     if large_char > 1:
-                        self.write('||large||  ')
+                        self.write('||Title||  ')
 
                     for child in item:
-                        render(child)
+                        if (hasattr(child, 'size') and child.size < self.small_char):
+                            pass
+                        else:
+                            render(child)
+                        
 
                     # if large_char > 1:
                     #     self.write('\n' + '=' * large_char * 2 + '=======' '\n')
@@ -298,8 +303,8 @@ class FinanceConverter(PDFConverter):
             elif isinstance(item, LTTextBox):
                 count = 0
                 grand_count = 0
-                large_char = False
-                small_char = False
+                small_child_count = 0
+                small_grand_count = 0
 
                 for child in item: 
 
@@ -309,8 +314,8 @@ class FinanceConverter(PDFConverter):
                     if (hasattr(child, 'size') and child.size > self.large_char):
                         large_char = True
                     
-                    if (hasattr(child, 'size') and child.size < self.large_char):
-                        small_char = True
+                    if (hasattr(child, 'size') and child.size > self.small_char):
+                        small_child_count += 1
 
                     for grand in child:
                         if grand.get_text().strip() is not '' and grand.get_text().strip() is not '\n':
@@ -319,34 +324,33 @@ class FinanceConverter(PDFConverter):
                         if (hasattr(grand, 'size') and grand.size > self.large_char):
                             large_char = True
                         
-                        if (hasattr(grand, 'size') and grand.size < self.large_char):
-                            small_char = True
+                        if (hasattr(grand, 'size') and grand.size > self.small_char):
+                            small_grand_count += 1 
 
                 # 버티컬 글자 박스
                 # print(item)
                 if isinstance(item, LTTextBoxVertical):
                     if grand_count > 0:
-                        if count > 0:
-                            self.write('--id=%d-------------------------------------------------\n' % (item.index))
+                        if count > 0 and (small_child_count > 0 or small_grand_count > 0):
+                            self.write('--------------------------------------------------------\n')
                             
-                        
                         for child in item:
                             render(child, str(item.index))
                         
-                        if count > 0:
+                        if count > 0 and (small_child_count > 0 or small_grand_count > 0):
                             self.write('--------------------------------------------------------\n')
 
                         large_char = False
 
                 if isinstance(item, LTTextBoxHorizontal):
                     if grand_count > 0:
-                        if count > 0:
-                            self.write('--id=%d-------------------------------------------------\n' % (item.index))
+                        if count > 0 and (small_child_count > 0 or small_grand_count > 0):
+                            self.write('--------------------------------------------------------\n')
                         
                         for child in item:
                             render(child, str(item.index))
                         
-                        if count > 0:
+                        if count > 0 and (small_child_count > 0 or small_grand_count > 0):
                             self.write('--------------------------------------------------------\n')
 
                         large_char = False

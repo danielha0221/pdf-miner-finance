@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+# 11_1835_2018-11-15_한국콜마_A161890_박은정_유안타증권
+
 from io import StringIO, BytesIO
 
 from finance_converter import FinanceConverter
@@ -21,6 +23,9 @@ class ExtractText():
         self.finance_words_count = dict()
         self.report_pdf_dir = '/Users/eunbyul/Desktop/git/pdf-miner-finance/report/'
         self.report_pdf_list  = [f for f in listdir(self.report_pdf_dir) if isfile(join(self.report_pdf_dir, f))]
+        self.file_nm = ''
+
+        print(self.report_pdf_list)
 
     def convert_pdf_to_txt(self, pdf_file):
         """PDF파일을 텍스트로 변환해주는 함수
@@ -31,19 +36,20 @@ class ExtractText():
         Returns:
             [dict]: PDF에서 텍스트로 변환된 결과물
         """
+        
         report_text = dict()
         output_string = StringIO()
-        file_nm = pdf_file.split(".")[0]
+        self.file_nm = pdf_file.split(".")[0]
         file_ex = pdf_file.split(".")[1]
 
         pdf_path = self.report_pdf_dir + pdf_file
-        out_path = self.report_pdf_dir + 'out/' + file_nm + '.txt'
+        out_path = self.report_pdf_dir + 'out/' + self.file_nm + '.txt'
 
         laparams = LAParams(line_overlap=.5,
-                            char_margin=.38,
+                            char_margin=1.38,
                             line_margin=1.1,
                             word_margin=0.01,
-                            boxes_flow=.8,
+                            boxes_flow=.5,
                             detect_vertical=False,
                             all_texts=False)
 
@@ -60,28 +66,47 @@ class ExtractText():
         
         with open(out_path, 'w') as out_file:
 
-            out_file.write(file_nm + '\n')
+            out_file.write(self.file_nm + '\n')
             out_file.write(report_text)
-        return
 
-    def detect_finance_page(self, text):
+        return report_text
+
+    def page_text_finder(self, report_text):
+        
         """텍스트로 변환된 스트링을 받아서, 재무 분석 의견이 있는 페이지를 찾는 함수
 
         Args:
-            text (string): [description]
+            report_text (string): [description]
 
         Returns:
             [list]: 재무 분석 문단이 있는 페이지
         """
-        # '1_185_2018-12-20_LG유플러스_A032640_최남곤_유안타증권'
-        # if '제목' in page_num:
-        #     print(value)
+        company_name = ''
+        page_text = ''
+        text = ''
+        i = 0
+        # print(report_text.split('\n'))
+        company_name = self.file_nm.split('_')[3]
+        company_num = self.file_nm.split('_')[4][1:]
 
-        page_num = 0
+        company_dict = {'LG상사': 'LG 상사'}
 
-        return page_num
+        if company_name in company_dict.keys():
+            company_name = company_dict[company_name]
 
-    def detect_finance_paragraph(self, text, page_num):
+        for line in report_text.split('\n'):
+            if "page_id" in line and '||Title||  ' + company_name in text and company_num in text:
+                page_text = text
+                break
+            elif "page_id" in line:
+                text = ''
+            else: 
+                text += line + '\n'
+        
+        return page_text
+        
+    def extract_paragraph(self, page_text):
+        
         """문단과 제목의 분리
 
         Args:
@@ -91,28 +116,37 @@ class ExtractText():
         Returns:
             [dict]: 문단 텍스트
         """
-        paragraph = ''
+        text = ''
+        page_text = page_text[58:]
+        paragraph_list = page_text.split('--------------------------------------------------------\n--------------------------------------------------------\n')
+        # print(paragraph_list)
+    
+        # 리스트 인덱스 하나씩 다. 갯수세기
 
-        # 문단과 제묵 분리 인식
-        return paragraph
+        for paragraph in paragraph_list:
+            if '다.' in paragraph:
+                text += paragraph + ' \n'
+        print(text)
+            
+        return text
 
-    def extract_finance_words(self):
+    
 
-        pass
+    def save_to_txt(self, txt):
+        out_path = self.report_pdf_dir + 'out/' + self.file_nm + '.txt'
+        with open(out_path, 'w') as out_file:
+            out_file.write(self.file_nm + '\n')
+            out_file.write(txt)
 
-    def match_finance_words(self):
-        pass
-
-    def save_to_csv(self):
-        pass
+        
 
     def main(self):
         # 이게 먼저 #input pdf output text
         for pdf_file in self.report_pdf_list:
-            text = self.convert_pdf_to_txt(pdf_file)
-            # paragraph = self.detect_finance_paragraph(text)
-            # mined_words = self.extract_finance_words(paragraph)
-            # self.match_finance_words()
+            report_text = self.convert_pdf_to_txt(pdf_file)
+            page_text = self.page_text_finder(report_text)
+            txt = self.extract_paragraph(page_text)
+            self.save_to_txt(txt)
             # self.save_to_csv()
 
 
