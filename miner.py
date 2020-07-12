@@ -1,9 +1,13 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# 11_1835_2018-11-15_한국콜마_A161890_박은정_유안타증권
+# pip install pytesseract pdf2image jamo hangul PIL pdfminer
 
 from io import StringIO, BytesIO
+import os
+from os import listdir
+from os.path import isfile, join
+import time
 
 from finance_converter import FinanceConverter
 from pdfminer.pdfdocument import PDFDocument, PDFStream
@@ -15,10 +19,9 @@ from pdfminer.layout import LAParams, LTTextBox, LTTextLine
 from pdfminer.pdfdevice import PDFDevice, TagExtractor
 import hangul
 from jamo import h2j, j2hcj, j2h
-
-from os import listdir
-from os.path import isfile, join
-import time
+from pdf2image import convert_from_path
+import pytesseract
+from PIL import Image, ImageEnhance, ImageFilter
 
 
 class ExtractText():
@@ -26,14 +29,20 @@ class ExtractText():
     def __init__(self):
         self.finance_words = list()
         self.finance_words_count = dict()
-        self.report_pdf_dir = '/Users/eunbyul/Desktop/증권회사/10_유안타증권_배은별_2/10_유안타증권_배은별_2/pdf/'
-        self.output_txt_dir = '/Users/eunbyul/Desktop/증권회사/10_유안타증권_배은별_2/10_유안타증권_배은별_2/txt/'
+        self.root_dir = '/Users/daniel/Desktop/test_2/'
+        self.report_pdf_dir = self.root_dir + 'pdf/'
+        self.output_txt_dir = self.root_dir + 'txt/'
+        self.temp_img_dir = self.root_dir + 'tmp/'
+        self.log_dir = self.root_dir + 'log/'
 
         self.report_pdf_list = [f for f in listdir(
             self.report_pdf_dir) if isfile(join(self.report_pdf_dir, f))]
         self.file_nm = ''
+        self.pdf_path = ''
 
-        print(self.report_pdf_list[0])
+        for dirs in [self.output_txt_dir, self.temp_img_dir, self.log_dir]:
+            if not os.path.exists(dirs):
+                os.makedirs(dirs)
 
         if '.DS_Store' in self.report_pdf_list:
             self.report_pdf_list.pop(self.report_pdf_list.index('.DS_Store'))
@@ -52,7 +61,8 @@ class ExtractText():
         self.file_nm = pdf_file.split(".")[0]
         file_ex = pdf_file.split(".")[1]
 
-        pdf_path = self.report_pdf_dir + pdf_file
+        self.pdf_path = self.report_pdf_dir + pdf_file
+        self.pdf_path = hangul.join_jamos(j2hcj(h2j(self.pdf_path)))
 
         laparams = LAParams(line_overlap=.5,
                             char_margin=1.38,
@@ -69,22 +79,18 @@ class ExtractText():
         # Extract text
         page_text_total = ''
         found = False
-        with open(pdf_path, 'rb') as in_file:
+        with open(self.pdf_path, 'rb') as in_file:
 
             for page_num, page in enumerate(PDFPage.get_pages(in_file, check_extractable=True)):
                 interpreter.process_page(page)
                 page_text = output_string.getvalue()
-                page_text_total += page_text
                 report_text, found = self.page_text_finder(page_text)
                 if found:
                     break
 
             if not found:
-                print('not found')
-                report_text = page_text_total
-                print(report_text)
-                
-            
+                report_text = None
+
         return report_text
 
     def page_text_finder(self, report_text):
@@ -150,6 +156,25 @@ class ExtractText():
 
         return text
 
+    def convert_pdf_to_img_to_txt(self):
+        pages = convert_from_path(self.pdf_path, 500)
+        self.temp_img_dir = self.root_dir + 'tmp/'
+
+        converted_text = ''
+        for i, page in enumerate(pages):
+            img_path = self.temp_img_dir + self.file_nm + f'-{i}' + '.jpg'
+            page.save(img_path, 'JPEG')
+            text = pytesseract.image_to_string(
+                Image.open(img_path), lang='kor+eng')
+            converted_text += text
+
+        return converted_text
+
+    def create_log_txt(self):
+        with open(self.log_dir + 'log.txt', 'a') as out_file:
+            out_file.write(str(time.time()) + ': ' + self.output_txt_dir +
+                           self.file_nm + '.txt \n')
+
     def save_to_txt(self, txt):
         output_path = self.output_txt_dir + self.file_nm + '.txt'
         output_path = hangul.join_jamos(j2hcj(h2j(output_path)))
@@ -160,20 +185,22 @@ class ExtractText():
     def main(self):
         # 이게 먼저 #input pdf output text
         # print(self.report_pdf_list)
+        start0 = time.time()
         for i, pdf_file in enumerate(sorted(self.report_pdf_list)):
             start1 = time.time()
             report_text = self.convert_pdf_to_txt(pdf_file)
-            txt = self.extract_paragraph(report_text)
-            end3 = time.time()
-            start4 = time.time()
+
+            if report_text:
+                txt = self.extract_paragraph(report_text)
+            else:
+                txt = self.convert_pdf_to_img_to_txt()
+                self.create_log_txt()
             self.save_to_txt(txt)
             end4 = time.time()
-            print(f'{i}/{len(self.report_pdf_list)}')
-            print(pdf_file)
-            # print("report_text_time", end1 - start1)
-            # print("txt_time", end3 - start3)
-            # print("save_time", end4 - start4)
-            print(f"total time : {end4 - start1}")
+
+            print(f'{i + 1}/{len(self.report_pdf_list)}')
+            print(f"for this task : {end4 - start1}")
+            print(f"total time : {end4 - start0}")
 
 
 if __name__ == "__main__":

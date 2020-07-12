@@ -129,8 +129,22 @@ class PDFLayoutAnalyzer(PDFTextDevice):
         return item.adv
 
     def handle_undefined_char(self, font, cid):
+        import codecs
+
+        def slashescape(err):
+            """ codecs error handler. err is UnicodeDecode instance. return
+            a tuple with a replacement for the unencodable part of the input
+            and a position where encoding should continue"""
+            # print err, dir(err), err.start, err.end, err.object[:err.start]
+            thebyte = err.object[err.start:err.end]
+            repl = u'\\x'+hex(ord(thebyte))[2:]
+            return (repl, err.end)
+
+        # codecs.register_error('slashescape', slashescape)
         log.info('undefined: %r, %r', font, cid)
-        cid = hangul.join_jamos(j2hcj(h2j(cid)))
+        # cid = hangul.join_jamos(j2hcj(h2j(cid)))
+        # print(font.basefont)
+        # print(font.basefont.decode('utf-8', 'slashescape'))
         return '(cid:%d)' % cid
 
     def receive_layout(self, ltpage):
