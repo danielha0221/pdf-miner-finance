@@ -24,8 +24,11 @@ from pdfminer.utils import mult_matrix
 from pdfminer.utils import enc
 from pdfminer.utils import bbox2str
 from pdfminer import utils
+import hangul
+from jamo import h2j, j2hcj, j2h
 
 log = logging.getLogger(__name__)
+
 
 class PDFLayoutAnalyzer(PDFTextDevice):
     def __init__(self, rsrcmgr, pageno=1, laparams=None):
@@ -127,10 +130,12 @@ class PDFLayoutAnalyzer(PDFTextDevice):
 
     def handle_undefined_char(self, font, cid):
         log.info('undefined: %r, %r', font, cid)
+        cid = hangul.join_jamos(j2hcj(h2j(cid)))
         return '(cid:%d)' % cid
 
     def receive_layout(self, ltpage):
         return
+
 
 class PDFConverter(PDFLayoutAnalyzer):
     def __init__(self, rsrcmgr, outfp, codec='utf-8', pageno=1,
@@ -158,6 +163,7 @@ class PDFConverter(PDFLayoutAnalyzer):
                     self.outfp_binary = True
         return
 
+
 class FinanceConverter(PDFConverter):
 
     CONTROL = re.compile('[\x00-\x08\x0b-\x0c\x0e-\x1f]')
@@ -175,9 +181,9 @@ class FinanceConverter(PDFConverter):
         self.need_enter = False
         self.large_char = 32
         self.small_char = 9
-        self.test  = []
+        self.test = []
         return
-    
+
     def is_all_continous_spaces(self, li):
         space_count = 0
         enter_count = 0
@@ -189,7 +195,7 @@ class FinanceConverter(PDFConverter):
         if space_count == 3 or enter_count == 3:
             return True
         else:
-            return False       
+            return False
 
     def write(self, text):
         if self.codec:
@@ -219,12 +225,12 @@ class FinanceConverter(PDFConverter):
     def receive_layout(self, ltpage):
         def show_group(item):
             if isinstance(item, LTTextBox):
-                # self.write(item)   
+                # self.write(item)
                 # self.write('<textbox id="%d" bbox="%s" />\n' %
                 #            (item.index, bbox2str(item.bbox)))
                 pass
             elif isinstance(item, LTTextGroup):
-                # self.write(item)   
+                # self.write(item)
                 # self.write('<textgroup bbox="%s">\n' % bbox2str(item.bbox))
                 # self.write('textgroup\n')
                 for child in item:
@@ -278,7 +284,7 @@ class FinanceConverter(PDFConverter):
 
                 if isinstance(item, LTTextLineHorizontal):
                     # print(item)
-                    
+
                     # if large_char > 1 and box_id:
                     #     self.write('==' + 'id=' + box_id + '=' * large_char * 2 + '\n')
                     if large_char > 1:
@@ -289,12 +295,11 @@ class FinanceConverter(PDFConverter):
                             pass
                         else:
                             render(child)
-                        
 
                     # if large_char > 1:
                     #     self.write('\n' + '=' * large_char * 2 + '=======' '\n')
                     #     self.need_enter = False
-                    
+
                     if self.need_enter:
                         self.write('\n')
                         self.need_enter = False
@@ -306,14 +311,14 @@ class FinanceConverter(PDFConverter):
                 small_child_count = 0
                 small_grand_count = 0
 
-                for child in item: 
+                for child in item:
 
-                    if child.get_text().strip() is not '' and child.get_text().strip() is not '\n': 
+                    if child.get_text().strip() is not '' and child.get_text().strip() is not '\n':
                         count += 1
 
                     if (hasattr(child, 'size') and child.size > self.large_char):
                         large_char = True
-                    
+
                     if (hasattr(child, 'size') and child.size > self.small_char):
                         small_child_count += 1
 
@@ -323,46 +328,50 @@ class FinanceConverter(PDFConverter):
 
                         if (hasattr(grand, 'size') and grand.size > self.large_char):
                             large_char = True
-                        
+
                         if (hasattr(grand, 'size') and grand.size > self.small_char):
-                            small_grand_count += 1 
+                            small_grand_count += 1
 
                 # 버티컬 글자 박스
                 # print(item)
                 if isinstance(item, LTTextBoxVertical):
                     if grand_count > 0:
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
-                            self.write('--------------------------------------------------------\n')
-                            
+                            self.write(
+                                '--------------------------------------------------------\n')
+
                         for child in item:
                             render(child, str(item.index))
-                        
+
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
-                            self.write('--------------------------------------------------------\n')
+                            self.write(
+                                '--------------------------------------------------------\n')
 
                         large_char = False
 
                 if isinstance(item, LTTextBoxHorizontal):
                     if grand_count > 0:
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
-                            self.write('--------------------------------------------------------\n')
-                        
+                            self.write(
+                                '--------------------------------------------------------\n')
+
                         for child in item:
                             render(child, str(item.index))
-                        
+
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
-                            self.write('--------------------------------------------------------\n')
+                            self.write(
+                                '--------------------------------------------------------\n')
 
                         large_char = False
 
-            # 글자            
+            # 글자
             elif isinstance(item, LTChar):
                 if self.count < 3 or len(self.space_check) < 3:
-                    self.space_check.append(item.get_text())     
+                    self.space_check.append(item.get_text())
                 else:
                     self.space_check.append(item.get_text())
                     self.space_check.pop(0)
-               
+
                 if self.count < 3 and (not item.get_text().strip() or item.get_text() == '\n'):
                     pass
 
@@ -375,8 +384,7 @@ class FinanceConverter(PDFConverter):
                         self.write_text(item.get_text())
                         self.need_space = True
                 self.count += 1
-                
-            
+
             # 단어
             elif isinstance(item, LTText):
                 if item.get_text().strip():
@@ -387,7 +395,7 @@ class FinanceConverter(PDFConverter):
                     self.need_enter = True
                     self.need_space = False
 
-            # 이미지       
+            # 이미지
             elif isinstance(item, LTImage):
                 if self.imagewriter is not None:
                     name = self.imagewriter.export_image(item)
@@ -402,7 +410,7 @@ class FinanceConverter(PDFConverter):
             return
 
             # 이미지
-            
+
         render(ltpage)
         return
 
