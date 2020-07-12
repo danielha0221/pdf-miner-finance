@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# pip install pytesseract pdf2image jamo hangul pdfminer.six 
+# pip install pytesseract pdf2image jamo hangul pdfminer.six
 # brew install poppler tesseract tesseract-lang
 
 from io import StringIO, BytesIO
@@ -30,7 +30,7 @@ class ExtractText():
     def __init__(self):
         self.finance_words = list()
         self.finance_words_count = dict()
-        self.root_dir = '/Users/eunbyul/Desktop/증권회사/10_유안타증권_배은별_2/10_유안타증권_배은별_2/'
+        self.root_dir = '/Users/daniel/Desktop/test_2/'
         self.report_pdf_dir = self.root_dir + 'pdf/'
         self.output_txt_dir = self.root_dir + 'txt/'
         self.temp_img_dir = self.root_dir + 'tmp/'
@@ -66,8 +66,8 @@ class ExtractText():
         self.pdf_path = hangul.join_jamos(j2hcj(h2j(self.pdf_path)))
 
         laparams = LAParams(line_overlap=.5,
-                            char_margin=1.38,
-                            line_margin=1.1,
+                            char_margin=1.35,
+                            line_margin=1.0,
                             word_margin=0.01,
                             boxes_flow=.5,
                             detect_vertical=False,
@@ -82,16 +82,19 @@ class ExtractText():
         with open(self.pdf_path, 'rb') as in_file:
 
             for page_num, page in enumerate(PDFPage.get_pages(in_file, check_extractable=True)):
+                # output_string.truncate(0)
+                # output_string.seek(0)
                 interpreter.process_page(page)
                 page_text = output_string.getvalue()
-                report_text, found = self.page_text_finder(page_text)
+                report_text, found, company_nm, company_num = self.page_text_finder(
+                    page_text)
                 if found:
                     break
 
             if not found:
                 report_text = None
 
-        return report_text
+        return report_text, company_nm, company_num
 
     def page_text_finder(self, report_text):
         """텍스트로 변환된 스트링을 받아서, 재무 분석 의견이 있는 페이지를 찾는 함수
@@ -118,37 +121,33 @@ class ExtractText():
         if company_name in company_dict.keys():
             company_name = company_dict[company_name]
 
+        if company_name == 'SK':
+            pass
+            # print(report_text)
+
         for line in report_text.split('\n'):
             if "page_id" in line and '||Title||  ' + company_name in text and company_num in text:
                 page_text = text
                 found = True
                 break
+
             elif "page_id" in line:
                 text = ''
             else:
                 text += line + '\n'
 
-        return page_text, found
+        return page_text, found, company_name, company_num
 
     def extract_paragraph(self, page_text):
-        """문단과 제목의 분리
 
-        Args:
-            text ([string]): 텍스트로 변환된 재무 문서
-            page_num ([list]): 재무 분석 문단이 있는 페이지
-
-        Returns:
-            [dict]: 문단 텍스트
-        """
         text = ''
         # page_text = page_text[58:-58]
         paragraph_list = page_text.split(
             '--------------------------------------------------------\n--------------------------------------------------------\n')
 
         # 리스트 인덱스 하나씩 다. 갯수세기
-
         for paragraph in paragraph_list:
-            if '다.' in paragraph:
+            if '다.' in paragraph or len(paragraph.split(' ')) > 20:
                 text += paragraph + ' \n'
             if "--------------------------------------------------------\n" in text:
                 text = text.replace(
@@ -164,15 +163,20 @@ class ExtractText():
         for i, page in enumerate(pages):
             img_path = self.temp_img_dir + self.file_nm + f'-{i}' + '.jpg'
             page.save(img_path, 'JPEG')
+
+            im = Image.open(img_path)
             text = pytesseract.image_to_string(
-                Image.open(img_path), lang='kor+eng')
+                im, lang='kor')
             converted_text += text
 
         return converted_text
 
-    def create_log_txt(self):
+    def create_log_txt(self, txt, company_nm, company_num):
         with open(self.log_dir + 'log.txt', 'a') as out_file:
             out_file.write(self.file_nm + '.txt \n')
+            out_file.write(company_nm + '   ' + company_num + '\n')
+            out_file.write(txt + '\n')
+            out_file.write('****************************\n')
 
     def save_to_txt(self, txt):
         output_path = self.output_txt_dir + self.file_nm + '.txt'
@@ -187,14 +191,16 @@ class ExtractText():
         start0 = time.time()
         for i, pdf_file in enumerate(sorted(self.report_pdf_list)):
             start1 = time.time()
-            report_text = self.convert_pdf_to_txt(pdf_file)
+            report_text, company_nm, company_num = self.convert_pdf_to_txt(
+                pdf_file)
 
             if report_text:
                 txt = self.extract_paragraph(report_text)
-            else:
-                txt = self.convert_pdf_to_img_to_txt()
-                self.create_log_txt()
-            self.save_to_txt(txt)
+                self.create_log_txt(report_text, company_nm, company_num)
+                self.save_to_txt(txt)
+            # else:
+                # txt = self.convert_pdf_to_img_to_txt()
+
             end4 = time.time()
 
             print(f'{i + 1}/{len(self.report_pdf_list)}')

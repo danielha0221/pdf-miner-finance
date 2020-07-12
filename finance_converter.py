@@ -193,7 +193,7 @@ class FinanceConverter(PDFConverter):
         self.space_check = []
         self.need_space = False
         self.need_enter = False
-        self.large_char = 32
+        self.large_char = 30
         self.small_char = 9
         self.test = []
         return
@@ -355,7 +355,7 @@ class FinanceConverter(PDFConverter):
                                 '--------------------------------------------------------\n')
 
                         for child in item:
-                            render(child, str(item.index))
+                            render(child)
 
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
                             self.write(
@@ -370,7 +370,7 @@ class FinanceConverter(PDFConverter):
                                 '--------------------------------------------------------\n')
 
                         for child in item:
-                            render(child, str(item.index))
+                            render(child)
 
                         if count > 0 and (small_child_count > 0 or small_grand_count > 0):
                             self.write(
@@ -380,6 +380,7 @@ class FinanceConverter(PDFConverter):
 
             # 글자
             elif isinstance(item, LTChar):
+                self.a = False
                 if self.count < 3 or len(self.space_check) < 3:
                     self.space_check.append(item.get_text())
                 else:
